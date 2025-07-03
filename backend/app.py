@@ -20,6 +20,13 @@ def create_app():
     jwt.init_app(app)
     CORS(app)
     
+    # Import models (needed for migrations)
+    from backend.models.user import User
+    
+    # Register blueprints
+    from backend.routes.auth import auth_bp
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    
     # Health check route
     @app.route('/api/health')
     def health():
