@@ -32,11 +32,13 @@ def create_app():
     from backend.routes.products import products_bp
     from backend.routes.services import services_bp
     from backend.routes.search import search_bp
+    from backend.routes.utils import utils_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(products_bp, url_prefix='/api/products')
     app.register_blueprint(services_bp, url_prefix='/api/services')
     app.register_blueprint(search_bp, url_prefix='/api/search')
+    app.register_blueprint(utils_bp, url_prefix='/api/utils')
     
     # Health check route
     @app.route('/api/health')
