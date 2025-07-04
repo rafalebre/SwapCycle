@@ -22,10 +22,21 @@ def create_app():
     
     # Import models (needed for migrations)
     from backend.models.user import User
+    from backend.models.product import Product, ProductCategory, ProductSubcategory
+    from backend.models.service import Service, ServiceCategory, ServiceSubcategory
+    from backend.models.trade import Trade
+    from backend.models.favorite import Favorite
     
     # Register blueprints
     from backend.routes.auth import auth_bp
+    from backend.routes.products import products_bp
+    from backend.routes.services import services_bp
+    from backend.routes.search import search_bp
+    
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(products_bp, url_prefix='/api/products')
+    app.register_blueprint(services_bp, url_prefix='/api/services')
+    app.register_blueprint(search_bp, url_prefix='/api/search')
     
     # Health check route
     @app.route('/api/health')
