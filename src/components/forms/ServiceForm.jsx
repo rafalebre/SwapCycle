@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import AddressAutocomplete from '../maps/AddressAutocomplete';
 
 const ServiceForm = ({ onSubmit, initialData = {}, isEditing = false }) => {
   const { token } = useAuth();
@@ -76,6 +77,23 @@ const ServiceForm = ({ onSubmit, initialData = {}, isEditing = false }) => {
     }
   };
 
+  const handleAddressSelect = (addressData) => {
+    setFormData(prev => ({
+      ...prev,
+      address: addressData.address,
+      latitude: addressData.latitude,
+      longitude: addressData.longitude
+    }));
+
+    // Clear address error if it exists
+    if (errors.address) {
+      setErrors(prev => ({
+        ...prev,
+        address: ''
+      }));
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
@@ -100,32 +118,6 @@ const ServiceForm = ({ onSubmit, initialData = {}, isEditing = false }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleAddressGeocoding = async (address) => {
-    try {
-      const response = await fetch('/api/utils/geocode', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ address })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          return {
-            latitude: data.coordinates.latitude,
-            longitude: data.coordinates.longitude
-          };
-        }
-      }
-    } catch (error) {
-      console.error('Error geocoding address:', error);
-    }
-    return { latitude: null, longitude: null };
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -136,18 +128,7 @@ const ServiceForm = ({ onSubmit, initialData = {}, isEditing = false }) => {
     setLoading(true);
 
     try {
-      let finalFormData = { ...formData };
-
-      // Geocode address for physical services
-      if (!formData.is_online && formData.address) {
-        const coordinates = await handleAddressGeocoding(formData.address);
-        finalFormData = {
-          ...finalFormData,
-          ...coordinates
-        };
-      }
-
-      await onSubmit(finalFormData);
+      await onSubmit(formData);
     } catch (error) {
       console.error('Error submitting form:', error);
       setErrors({ submit: 'Error creating service. Please try again.' });
@@ -255,12 +236,10 @@ const ServiceForm = ({ onSubmit, initialData = {}, isEditing = false }) => {
         {!formData.is_online && (
           <div className="form-group">
             <label htmlFor="address">Service Location *</label>
-            <input
-              type="text"
-              id="address"
-              name="address"
+            <AddressAutocomplete
               value={formData.address}
               onChange={handleChange}
+              onPlaceSelect={handleAddressSelect}
               placeholder="Enter the address where you provide this service"
               className={errors.address ? 'error' : ''}
               required={!formData.is_online}
