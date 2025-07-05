@@ -14,6 +14,9 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     
+    # FIX: Disable strict slashes to prevent 308 redirects
+    app.url_map.strict_slashes = False
+    
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
@@ -24,7 +27,8 @@ def create_app():
          origins=['http://localhost:5173', 'http://127.0.0.1:5173'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
          allow_headers=['Content-Type', 'Authorization'],
-         supports_credentials=True)
+         supports_credentials=True,
+         expose_headers=['Content-Length', 'X-JSON'])
     
     # Import models (needed for migrations)
     from backend.models.user import User

@@ -20,7 +20,6 @@ const SearchFilters = ({
       setCategories(response.data.categories || []);
     } catch (error) {
       console.error('Error loading categories:', error);
-      // Set empty categories on error to prevent UI issues
       setCategories([]);
     }
   };
@@ -28,7 +27,6 @@ const SearchFilters = ({
   const handleFilterChange = (key, value) => {
     const newFilters = { ...filters, [key]: value };
     
-    // Reset page when filters change
     if (key !== 'page') {
       newFilters.page = 1;
     }
@@ -97,11 +95,11 @@ const SearchFilters = ({
         </div>
       </div>
 
-      {/* Search Type Toggle */}
+      {/* Search Type Toggle - FIX: Unique keys */}
       <div className="search-type-toggle" style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-        {['all', 'products', 'services'].map((type) => (
+        {['all', 'products', 'services'].map((type, index) => (
           <button
-            key={type}
+            key={`search-type-${type}-${index}`}
             type="button"
             onClick={() => handleFilterChange('type', type)}
             disabled={isLoading}
@@ -123,7 +121,7 @@ const SearchFilters = ({
 
       {/* Quick Filters Row */}
       <div className="quick-filters" style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-        {/* Category Filter */}
+        {/* Category Filter - FIX: Unique keys using type + id */}
         <select
           value={filters.category_id || ''}
           onChange={(e) => handleFilterChange('category_id', e.target.value)}
@@ -137,7 +135,7 @@ const SearchFilters = ({
         >
           <option value="">All Categories</option>
           {categories.map((category) => (
-            <option key={category.id} value={category.id}>
+            <option key={`${category.type}-${category.id}`} value={category.id}>
               {category.name} ({category.count || 0})
             </option>
           ))}

@@ -272,3 +272,109 @@ def get_map_data():
         'markers': markers,
         'total': len(markers)
     })
+
+@search_bp.route('/products', methods=['GET'])
+def search_products():
+    """Search only products"""
+    args = dict(request.args)
+    args['type'] = 'products'
+    
+    # Forward to main search with type filter
+    request.args = type('Args', (), args)()
+    return search_all()
+
+@search_bp.route('/services', methods=['GET'])
+def search_services():
+    """Search only physical services"""
+    args = dict(request.args)
+    args['type'] = 'services'
+    
+    request.args = type('Args', (), args)()
+    return search_all()
+
+@search_bp.route('/online-services', methods=['GET'])
+def search_online_services():
+    """Search only online services (no map needed)"""
+    keyword = request.args.get('keyword', '').strip()
+    category_id = request.args.get('category_id', type=int)
+    min_price = request.args.get('min_price', type=float)
+    max_price = request.args.get('max_price', type=float)
+    
+    # Pagination
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 12, type=int), 100)
+    
+    query = Service.query.filter(
+        and_(
+            Service.availability_status == 'available',
+            Service.is_online == True
+        )
+    )
+    
+    # Apply filters
+    if keyword:
+        query = query.filter(
+            or_(
+                Service.name.ilike(f'%{keyword}%'),
+                Service.description.ilike(f'%{keyword}%')
+            )
+        )
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    if min_price:
+        query = query.filter(Service.estimated_value >= min_price)
+    if max_price:
+        query = query.filter(Service.estimated_value <= max_price)
+    
+    services = query.paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    results = []
+    for service in services.items:
+        result = service.to_dict()
+        result['type'] = 'service'
+        results.append(result)
+    
+    return jsonify({
+        'results': results,
+        'total': services.total,
+        'page': page,
+        'pages': services.pages,
+        'per_page': per_page
+    })
+
+@search_bp.route('/categories', methods=['GET'])
+def get_search_categories():
+    """Get categories for search filters"""
+    search_type = request.args.get('type', 'all')
+    
+    categories = []
+    
+    if search_type in ['all', 'products']:
+        product_categories = ProductCategory.query.all()
+        for cat in product_categories:
+            categories.append({
+                'id': cat.id,
+                'name': cat.name,
+                'type': 'product',
+                'count': Product.query.filter_by(
+                    category_id=cat.id, 
+                    availability_status='available'
+                ).count()
+            })
+    
+    if search_type in ['all', 'services']:
+        service_categories = ServiceCategory.query.all()
+        for cat in service_categories:
+            categories.append({
+                'id': cat.id,
+                'name': cat.name,
+                'type': 'service',
+                'count': Service.query.filter_by(
+                    category_id=cat.id, 
+                    availability_status='available'
+                ).count()
+            })
+    
+    return jsonify({'categories': categories})
