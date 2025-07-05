@@ -1,9 +1,11 @@
 // User login page
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import authService from '../services/authService';
 
 const Login = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login } = useAuth();
@@ -13,7 +15,8 @@ const Login = () => {
     try {
       const response = await authService.login({ email, password });
       login(response.data.user, response.data.token);
-      alert('Login successful!');
+      // FIX: Redirect to dashboard after successful login
+      navigate('/dashboard');
     } catch (error) {
       alert('Login failed: ' + error.response?.data?.message);
     }

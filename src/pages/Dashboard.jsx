@@ -12,9 +12,8 @@ import RegisterService from './RegisterService';
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   
-  // Determine active section from URL
   const getActiveSectionFromPath = () => {
     const path = location.pathname;
     if (path.includes('my-listings')) return 'my-listings';
@@ -33,10 +32,16 @@ const Dashboard = () => {
     setActiveSection(getActiveSectionFromPath());
   }, [location.pathname]);
 
+  // FIX: Wait for loading before redirecting
+  React.useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, loading, navigate]);
+
   const handleSectionChange = (sectionId) => {
     setActiveSection(sectionId);
     
-    // Update URL based on section
     switch (sectionId) {
       case 'register-product':
         navigate('/dashboard/register-product');
@@ -119,8 +124,17 @@ const Dashboard = () => {
     }
   };
 
+  // FIX: Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner">Loading...</div>
+      </div>
+    );
+  }
+
+  // FIX: If not authenticated after loading, don't render dashboard
   if (!isAuthenticated) {
-    navigate('/login');
     return null;
   }
 

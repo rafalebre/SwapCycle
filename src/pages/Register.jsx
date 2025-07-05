@@ -1,9 +1,11 @@
 // User registration page
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import authService from '../services/authService';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     username: '',
@@ -26,7 +28,8 @@ const Register = () => {
     try {
       const response = await authService.register(formData);
       login(response.data.user, response.data.token);
-      alert('Registration successful!');
+      // FIX: Redirect to dashboard after successful registration
+      navigate('/dashboard');
     } catch (error) {
       alert('Registration failed: ' + error.response?.data?.message);
     }
