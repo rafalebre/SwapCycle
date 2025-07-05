@@ -16,7 +16,7 @@ const SearchFilters = ({ filters, onFiltersChange, isLoading }) => {
   // Load subcategories when category changes
   useEffect(() => {
     if (filters.category_id && filters.type !== 'all') {
-      loadSubcategories(filters.category_id, filters.type);
+      loadSubcategories(filters.category_id, filters.type === "all" ? "product" : filters.type);
     } else {
       setSubcategories([]);
     }
@@ -38,7 +38,7 @@ const SearchFilters = ({ filters, onFiltersChange, isLoading }) => {
   const loadSubcategories = async (categoryId, type) => {
     setLoadingSubcategories(true);
     try {
-      const response = await searchService.getSubcategories(categoryId, type);
+      const actualType = type === "all" ? "product" : type; const response = await searchService.getSubcategories(categoryId, actualType);
       setSubcategories(response.data.subcategories || []);
     } catch (error) {
       console.error('Error loading subcategories:', error);
