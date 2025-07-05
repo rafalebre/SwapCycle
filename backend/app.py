@@ -18,7 +18,13 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    CORS(app)
+    
+    # Configure CORS with specific settings
+    CORS(app, 
+         origins=['http://localhost:5173', 'http://127.0.0.1:5173'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+         allow_headers=['Content-Type', 'Authorization'],
+         supports_credentials=True)
     
     # Import models (needed for migrations)
     from backend.models.user import User
