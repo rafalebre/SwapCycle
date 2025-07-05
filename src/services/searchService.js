@@ -31,6 +31,16 @@ export const searchService = {
     return api.get('/search/categories', { params: { type } });
   },
 
+  // Get subcategories for a specific category
+  getSubcategories: (categoryId, type = 'product') => {
+    return api.get('/search/subcategories', { 
+      params: { 
+        category_id: categoryId, 
+        type: type 
+      } 
+    });
+  },
+
   // Helper to get user's location
   getUserLocation: () => {
     return new Promise((resolve, reject) => {
@@ -66,6 +76,7 @@ export const searchService = {
     if (filters.keyword) params.keyword = filters.keyword;
     if (filters.type && filters.type !== 'all') params.type = filters.type;
     if (filters.category_id) params.category_id = filters.category_id;
+    if (filters.subcategory_id) params.subcategory_id = filters.subcategory_id;
     if (filters.min_price) params.min_price = filters.min_price;
     if (filters.max_price) params.max_price = filters.max_price;
 

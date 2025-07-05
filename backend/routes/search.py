@@ -378,3 +378,35 @@ def get_search_categories():
             })
     
     return jsonify({'categories': categories})
+
+@search_bp.route('/subcategories', methods=['GET'])
+def get_subcategories():
+    """Get subcategories for a specific category"""
+    category_id = request.args.get('category_id', type=int)
+    category_type = request.args.get('type', 'product')  # 'product' or 'service'
+    
+    if not category_id:
+        return jsonify({'message': 'category_id is required'}), 400
+    
+    subcategories = []
+    
+    if category_type == 'product':
+        from backend.models.product import ProductSubcategory
+        subcats = ProductSubcategory.query.filter_by(category_id=category_id).all()
+        for subcat in subcats:
+            subcategories.append({
+                'id': subcat.id,
+                'name': subcat.name,
+                'category_id': subcat.category_id
+            })
+    elif category_type == 'service':
+        from backend.models.service import ServiceSubcategory
+        subcats = ServiceSubcategory.query.filter_by(category_id=category_id).all()
+        for subcat in subcats:
+            subcategories.append({
+                'id': subcat.id,
+                'name': subcat.name,
+                'category_id': subcat.category_id
+            })
+    
+    return jsonify({'subcategories': subcategories})

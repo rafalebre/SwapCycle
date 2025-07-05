@@ -1,34 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { searchService } from '../../services/searchService';
+import searchService from '../../services/searchService';
 
-const SearchFilters = ({ 
-  filters, 
-  onFiltersChange, 
-  searchType = 'all',
-  isLoading = false 
-}) => {
+const SearchFilters = ({ filters, onFiltersChange, isLoading }) => {
   const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingSubcategories, setLoadingSubcategories] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Load categories when component mounts or search type changes
   useEffect(() => {
     loadCategories();
-  }, [searchType]);
+  }, [filters.type]);
+
+  // Load subcategories when category changes
+  useEffect(() => {
+    if (filters.category_id && filters.type !== 'all') {
+      loadSubcategories(filters.category_id, filters.type);
+    } else {
+      setSubcategories([]);
+    }
+  }, [filters.category_id, filters.type]);
 
   const loadCategories = async () => {
+    setLoadingCategories(true);
     try {
-      const response = await searchService.getCategories(searchType);
+      const response = await searchService.getCategories(filters.type);
       setCategories(response.data.categories || []);
     } catch (error) {
       console.error('Error loading categories:', error);
       setCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const loadSubcategories = async (categoryId, type) => {
+    setLoadingSubcategories(true);
+    try {
+      const response = await searchService.getSubcategories(categoryId, type);
+      setSubcategories(response.data.subcategories || []);
+    } catch (error) {
+      console.error('Error loading subcategories:', error);
+      setSubcategories([]);
+    } finally {
+      setLoadingSubcategories(false);
     }
   };
 
   const handleFilterChange = (key, value) => {
     const newFilters = { ...filters, [key]: value };
     
-    if (key !== 'page') {
-      newFilters.page = 1;
+    // Reset subcategory when category changes
+    if (key === 'category_id') {
+      newFilters.subcategory_id = '';
+    }
+    
+    // Reset category and subcategory when type changes
+    if (key === 'type') {
+      newFilters.category_id = '';
+      newFilters.subcategory_id = '';
     }
     
     onFiltersChange(newFilters);
@@ -37,192 +68,167 @@ const SearchFilters = ({
   const resetFilters = () => {
     onFiltersChange({
       keyword: '',
-      type: searchType,
+      type: 'all',
       category_id: '',
+      subcategory_id: '',
       min_price: '',
       max_price: '',
-      radius: 10,
+      radius: 50,
       page: 1
     });
-    setShowAdvanced(false);
   };
 
-  const hasActiveFilters = () => {
-    return filters.keyword || 
-           filters.category_id || 
-           filters.min_price || 
-           filters.max_price || 
-           filters.radius !== 10;
-  };
+  const searchTypes = [
+    { value: 'all', label: 'All Items' },
+    { value: 'products', label: 'Products' },
+    { value: 'services', label: 'Services' }
+  ];
 
   return (
-    <div className="search-filters" style={{ padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', marginBottom: '20px' }}>
-      {/* Main Search Bar */}
-      <div className="search-bar" style={{ marginBottom: '15px' }}>
-        <div className="search-input-group" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+    <div className="search-filters">
+      <div className="filters-container">
+        {/* Keyword Search */}
+        <div className="filter-group">
+          <label htmlFor="keyword">Search</label>
           <input
+            id="keyword"
             type="text"
-            placeholder="Search products and services..."
+            placeholder="Search for items..."
             value={filters.keyword || ''}
             onChange={(e) => handleFilterChange('keyword', e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px 40px 12px 15px',
-              border: '2px solid #ddd',
-              borderRadius: '25px',
-              fontSize: '16px',
-              outline: 'none'
-            }}
-            disabled={isLoading}
+            className="filter-input"
           />
-          {filters.keyword && (
-            <button 
-              type="button"
-              onClick={() => handleFilterChange('keyword', '')}
-              style={{
-                position: 'absolute',
-                right: '15px',
-                background: 'none',
-                border: 'none',
-                fontSize: '18px',
-                cursor: 'pointer',
-                color: '#666'
-              }}
-            >
-              ✕
-            </button>
-          )}
         </div>
-      </div>
 
-      {/* Search Type Toggle - FIX: Unique keys */}
-      <div className="search-type-toggle" style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-        {['all', 'products', 'services'].map((type, index) => (
-          <button
-            key={`search-type-${type}-${index}`}
-            type="button"
-            onClick={() => handleFilterChange('type', type)}
-            disabled={isLoading}
-            style={{
-              padding: '8px 16px',
-              border: '2px solid #007BFF',
-              borderRadius: '20px',
-              background: filters.type === type ? '#007BFF' : 'white',
-              color: filters.type === type ? 'white' : '#007BFF',
-              cursor: 'pointer',
-              textTransform: 'capitalize',
-              fontSize: '14px'
-            }}
+        {/* Search Type */}
+        <div className="filter-group">
+          <label>Type</label>
+          <div className="search-type-buttons">
+            {searchTypes.map((type, index) => (
+              <button
+                key={`search-type-${type.value}-${index}`}
+                type="button"
+                className={`type-button ${filters.type === type.value ? 'active' : ''}`}
+                onClick={() => handleFilterChange('type', type.value)}
+              >
+                {type.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Category */}
+        <div className="filter-group">
+          <label htmlFor="category">Category</label>
+          <select
+            id="category"
+            value={filters.category_id || ''}
+            onChange={(e) => handleFilterChange('category_id', e.target.value)}
+            className="filter-select"
+            disabled={loadingCategories}
           >
-            {type}
-          </button>
-        ))}
-      </div>
+            <option value="">All Categories</option>
+            {categories.map((category) => (
+              <option 
+                key={`${category.type}-${category.id}`} 
+                value={category.id}
+              >
+                {category.name} ({category.count})
+              </option>
+            ))}
+          </select>
+          {loadingCategories && <span className="loading-text">Loading categories...</span>}
+        </div>
 
-      {/* Quick Filters Row */}
-      <div className="quick-filters" style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-        {/* Category Filter - FIX: Unique keys using type + id */}
-        <select
-          value={filters.category_id || ''}
-          onChange={(e) => handleFilterChange('category_id', e.target.value)}
-          disabled={isLoading}
-          style={{
-            padding: '8px 12px',
-            border: '1px solid #ddd',
-            borderRadius: '5px',
-            fontSize: '14px'
-          }}
-        >
-          <option value="">All Categories</option>
-          {categories.map((category) => (
-            <option key={`${category.type}-${category.id}`} value={category.id}>
-              {category.name} ({category.count || 0})
-            </option>
-          ))}
-        </select>
+        {/* Subcategory - Only show when category is selected */}
+        {filters.category_id && filters.type !== 'all' && (
+          <div className="filter-group">
+            <label htmlFor="subcategory">Subcategory</label>
+            <select
+              id="subcategory"
+              value={filters.subcategory_id || ''}
+              onChange={(e) => handleFilterChange('subcategory_id', e.target.value)}
+              className="filter-select"
+              disabled={loadingSubcategories}
+            >
+              <option value="">All Subcategories</option>
+              {subcategories.map((subcategory) => (
+                <option key={subcategory.id} value={subcategory.id}>
+                  {subcategory.name}
+                </option>
+              ))}
+            </select>
+            {loadingSubcategories && <span className="loading-text">Loading subcategories...</span>}
+          </div>
+        )}
 
         {/* Advanced Filters Toggle */}
         <button
           type="button"
+          className="advanced-toggle"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          style={{
-            padding: '8px 16px',
-            border: '1px solid #666',
-            borderRadius: '5px',
-            background: showAdvanced ? '#666' : 'white',
-            color: showAdvanced ? 'white' : '#666',
-            cursor: 'pointer',
-            fontSize: '14px'
-          }}
         >
-          {showAdvanced ? 'Hide' : 'More'} Filters
+          {showAdvanced ? 'Hide' : 'Show'} Advanced Filters
         </button>
 
-        {/* Reset Filters */}
-        {hasActiveFilters() && (
-          <button
-            type="button"
-            onClick={resetFilters}
-            style={{
-              padding: '8px 16px',
-              border: '1px solid #dc3545',
-              borderRadius: '5px',
-              background: 'white',
-              color: '#dc3545',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            Clear All
-          </button>
-        )}
-      </div>
-
-      {/* Advanced Filters */}
-      {showAdvanced && (
-        <div className="advanced-filters" style={{ marginTop: '15px', padding: '15px', backgroundColor: 'white', borderRadius: '5px', border: '1px solid #ddd' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
-            {/* Price Range */}
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>Price Range</label>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        {/* Advanced Filters */}
+        {showAdvanced && (
+          <div className="advanced-filters">
+            <div className="filter-row">
+              <div className="filter-group">
+                <label htmlFor="min_price">Min Price</label>
                 <input
+                  id="min_price"
                   type="number"
-                  placeholder="Min"
+                  placeholder="0"
                   value={filters.min_price || ''}
                   onChange={(e) => handleFilterChange('min_price', e.target.value)}
-                  style={{ width: '80px', padding: '5px', border: '1px solid #ddd', borderRadius: '3px' }}
+                  className="filter-input small"
                 />
-                <span>-</span>
+              </div>
+              
+              <div className="filter-group">
+                <label htmlFor="max_price">Max Price</label>
                 <input
+                  id="max_price"
                   type="number"
-                  placeholder="Max"
+                  placeholder="1000"
                   value={filters.max_price || ''}
                   onChange={(e) => handleFilterChange('max_price', e.target.value)}
-                  style={{ width: '80px', padding: '5px', border: '1px solid #ddd', borderRadius: '3px' }}
+                  className="filter-input small"
                 />
               </div>
             </div>
 
-            {/* Search Radius */}
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: 'bold' }}>
-                Search Radius: {filters.radius || 10} km
-              </label>
+            <div className="filter-group">
+              <label htmlFor="radius">Search Radius: {filters.radius || 50} km</label>
               <input
+                id="radius"
                 type="range"
                 min="1"
-                max="50"
-                value={filters.radius || 10}
+                max="100"
+                value={filters.radius || 50}
                 onChange={(e) => handleFilterChange('radius', parseInt(e.target.value))}
-                style={{ width: '100%' }}
+                className="filter-range"
               />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
-                <span>1km</span>
-                <span>50km</span>
-              </div>
             </div>
           </div>
+        )}
+
+        {/* Reset Button */}
+        <button
+          type="button"
+          className="reset-button"
+          onClick={resetFilters}
+        >
+          Reset All Filters
+        </button>
+      </div>
+
+      {/* Loading Indicator */}
+      {isLoading && (
+        <div className="search-loading">
+          <span>Searching...</span>
         </div>
       )}
     </div>
