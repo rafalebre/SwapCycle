@@ -75,55 +75,67 @@ const SearchMap = ({
       return;
     }
 
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
+    // Removed geometry library to fix IntersectionObserver error
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
     script.async = true;
     script.defer = true;
     script.onload = () => initializeMap();
     script.onerror = () => console.error('Failed to load Google Maps script');
+    
     document.head.appendChild(script);
   };
 
   const handleBoundsChange = useCallback(() => {
     if (!mapInstance.current || !onBoundsChange) return;
-
+    
     const bounds = mapInstance.current.getBounds();
     if (bounds) {
-      const ne = bounds.getNorthEast();
-      const sw = bounds.getSouthWest();
-      
-      onBoundsChange({
-        north: ne.lat(),
-        south: sw.lat(),
-        east: ne.lng(),
-        west: sw.lng()
-      });
+      const boundsData = {
+        north: bounds.getNorthEast().lat(),
+        south: bounds.getSouthWest().lat(),
+        east: bounds.getNorthEast().lng(),
+        west: bounds.getSouthWest().lng()
+      };
+      onBoundsChange(boundsData);
     }
   }, [onBoundsChange]);
 
-  useEffect(() => {
-    if (!isLoaded || !mapInstance.current || !window.google?.maps) return;
-
-    // Clear existing markers
+  const clearMarkers = () => {
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
+  };
 
-    // Add new markers
-    markers.forEach(markerData => {
+  useEffect(() => {
+    if (!isLoaded || !mapInstance.current) return;
+
+    clearMarkers();
+
+    markers.forEach((markerData, index) => {
       if (!markerData.latitude || !markerData.longitude) return;
 
       const marker = new window.google.maps.Marker({
-        position: { 
-          lat: parseFloat(markerData.latitude), 
-          lng: parseFloat(markerData.longitude) 
+        position: {
+          lat: parseFloat(markerData.latitude),
+          lng: parseFloat(markerData.longitude)
         },
         map: mapInstance.current,
-        title: markerData.title,
+        title: markerData.name,
         icon: {
           url: markerData.type === 'product' 
-            ? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAyNCAzNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMzZMMjEgMTJIMTVWMEg5VjEySDNMMTIgMzZaIiBmaWxsPSIjMzMzIi8+PC9zdmc+'
-            : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAyNCAzNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMzZMMjEgMTJIMTVWMEg5VjEySDNMMTIgMzZaIiBmaWxsPSIjMDA3QkZGIi8+PC9zdmc+',
-          scaledSize: new window.google.maps.Size(24, 36),
-          anchor: new window.google.maps.Point(12, 36)
+            ? 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" fill="#007BFF" stroke="white" stroke-width="2"/>
+                <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">P</text>
+              </svg>
+            `)
+            : 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" fill="#28A745" stroke="white" stroke-width="2"/>
+                <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">S</text>
+              </svg>
+            `),
+          scaledSize: new window.google.maps.Size(24, 24),
+          anchor: new window.google.maps.Point(12, 12)
         }
       });
 
@@ -133,11 +145,9 @@ const SearchMap = ({
         }
 
         const content = `
-          <div style="padding: 10px; max-width: 200px;">
-            <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: bold;">
-              ${markerData.title}
-            </h3>
-            <p style="margin: 0 0 8px 0; color: #666; font-size: 12px;">
+          <div style="padding: 8px; max-width: 200px;">
+            <h4 style="margin: 0 0 8px 0; color: #333;">${markerData.name}</h4>
+            <p style="margin: 0 0 4px 0; color: #666; font-size: 14px;">
               ${markerData.type === 'product' ? 'Product' : 'Service'}
               ${markerData.category ? ` • ${markerData.category}` : ''}
             </p>
