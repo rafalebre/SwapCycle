@@ -15,12 +15,17 @@ const SearchFilters = ({ filters, onFiltersChange, isLoading }) => {
 
   // Load subcategories when category changes
   useEffect(() => {
-    if (filters.category_id && filters.type !== 'all') {
-      loadSubcategories(filters.category_id, filters.type === "all" ? "product" : filters.type);
+    if (filters.category_id) {
+      // Find the selected category to determine its type
+      const selectedCategory = categories.find(cat => cat.id === parseInt(filters.category_id));
+      if (selectedCategory) {
+        const categoryType = selectedCategory.type;
+        loadSubcategories(filters.category_id, categoryType);
+      }
     } else {
       setSubcategories([]);
     }
-  }, [filters.category_id, filters.type]);
+  }, [filters.category_id, categories]);
 
   const loadCategories = async () => {
     setLoadingCategories(true);
@@ -35,10 +40,10 @@ const SearchFilters = ({ filters, onFiltersChange, isLoading }) => {
     }
   };
 
-  const loadSubcategories = async (categoryId, type) => {
+  const loadSubcategories = async (categoryId, categoryType) => {
     setLoadingSubcategories(true);
     try {
-      const actualType = type === "all" ? "product" : type; const response = await searchService.getSubcategories(categoryId, actualType);
+      const response = await searchService.getSubcategories(categoryId, categoryType);
       setSubcategories(response.data.subcategories || []);
     } catch (error) {
       console.error('Error loading subcategories:', error);
@@ -140,8 +145,8 @@ const SearchFilters = ({ filters, onFiltersChange, isLoading }) => {
           {loadingCategories && <span className="loading-text">Loading categories...</span>}
         </div>
 
-        {/* Subcategory - Only show when category is selected */}
-        {filters.category_id && filters.type !== 'all' && (
+        {/* Subcategory - Show when category is selected */}
+        {filters.category_id && (
           <div className="filter-group">
             <label htmlFor="subcategory">Subcategory</label>
             <select
@@ -174,34 +179,31 @@ const SearchFilters = ({ filters, onFiltersChange, isLoading }) => {
         {/* Advanced Filters */}
         {showAdvanced && (
           <div className="advanced-filters">
-            <div className="filter-row">
-              <div className="filter-group">
-                <label htmlFor="min_price">Min Price</label>
+            {/* Price Range */}
+            <div className="filter-group">
+              <label>Price Range</label>
+              <div className="price-inputs">
                 <input
-                  id="min_price"
                   type="number"
-                  placeholder="0"
+                  placeholder="Min"
                   value={filters.min_price || ''}
                   onChange={(e) => handleFilterChange('min_price', e.target.value)}
-                  className="filter-input small"
+                  className="filter-input price-input"
                 />
-              </div>
-              
-              <div className="filter-group">
-                <label htmlFor="max_price">Max Price</label>
+                <span className="price-separator">to</span>
                 <input
-                  id="max_price"
                   type="number"
-                  placeholder="1000"
+                  placeholder="Max"
                   value={filters.max_price || ''}
                   onChange={(e) => handleFilterChange('max_price', e.target.value)}
-                  className="filter-input small"
+                  className="filter-input price-input"
                 />
               </div>
             </div>
 
+            {/* Radius */}
             <div className="filter-group">
-              <label htmlFor="radius">Search Radius: {filters.radius || 50} km</label>
+              <label htmlFor="radius">Search Radius: {filters.radius}km</label>
               <input
                 id="radius"
                 type="range"
@@ -215,22 +217,18 @@ const SearchFilters = ({ filters, onFiltersChange, isLoading }) => {
           </div>
         )}
 
-        {/* Reset Button */}
-        <button
-          type="button"
-          className="reset-button"
-          onClick={resetFilters}
-        >
-          Reset All Filters
-        </button>
-      </div>
-
-      {/* Loading Indicator */}
-      {isLoading && (
-        <div className="search-loading">
-          <span>Searching...</span>
+        {/* Filter Actions */}
+        <div className="filter-actions">
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="reset-button"
+            disabled={isLoading}
+          >
+            Reset Filters
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 };
