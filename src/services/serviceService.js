@@ -1,44 +1,125 @@
 import api from './api';
 
-export const serviceService = {
-  // Get all services with filtering
-  getServices: (params = {}) => api.get('/services', { params }),
-  
-  // Get single service by ID
-  getServiceById: (id) => api.get(`/services/${id}`),
-  
+const serviceService = {
   // Create new service
-  createService: (serviceData) => api.post('/services', serviceData),
-  
-  // Update existing service
-  updateService: (id, serviceData) => api.put(`/services/${id}`, serviceData),
-  
+  createService: async (serviceData) => {
+    try {
+      const response = await api.post('/services', serviceData);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Service created successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Error creating service'
+      };
+    }
+  },
+
+  // Get all services for current user
+  getUserServices: async () => {
+    try {
+      const response = await api.get('/services/user');
+      return {
+        success: true,
+        data: response.data.services || [],
+        total: response.data.total || 0
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: [],
+        message: error.response?.data?.message || 'Error fetching services'
+      };
+    }
+  },
+
+  // Get single service by ID
+  getService: async (serviceId) => {
+    try {
+      const response = await api.get(`/services/${serviceId}`);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Error fetching service'
+      };
+    }
+  },
+
+  // Update service
+  updateService: async (serviceId, serviceData) => {
+    try {
+      const response = await api.put(`/services/${serviceId}`, serviceData);
+      return {
+        success: true,
+        data: response.data,
+        message: 'Service updated successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Error updating service'
+      };
+    }
+  },
+
   // Delete service
-  deleteService: (id) => api.delete(`/services/${id}`),
-  
+  deleteService: async (serviceId) => {
+    try {
+      await api.delete(`/services/${serviceId}`);
+      return {
+        success: true,
+        message: 'Service deleted successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Error deleting service'
+      };
+    }
+  },
+
   // Get service categories
-  getServiceCategories: () => api.get('/services/categories'),
-  
-  // Get online services only
-  getOnlineServices: (params = {}) => api.get('/services/online', { params }),
-  
-  // Get user's services
-  getUserServices: (userId, params = {}) => api.get('/services', { 
-    params: { ...params, user_id: userId } 
-  }),
-  
-  // Filter services by type
-  filterServices: (filters) => {
-    const params = {};
-    
-    if (filters.category_id) params.category_id = filters.category_id;
-    if (filters.subcategory_id) params.subcategory_id = filters.subcategory_id;
-    if (filters.is_online !== undefined) params.is_online = filters.is_online;
-    if (filters.keyword) params.keyword = filters.keyword;
-    if (filters.page) params.page = filters.page;
-    if (filters.per_page) params.per_page = filters.per_page;
-    
-    return api.get('/services', { params });
+  getCategories: async () => {
+    try {
+      const response = await api.get('/services/categories');
+      return {
+        success: true,
+        data: response.data.categories || []
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: [],
+        message: error.response?.data?.message || 'Error fetching categories'
+      };
+    }
+  },
+
+  // Search online services
+  searchOnlineServices: async (params) => {
+    try {
+      const response = await api.get('/services/online', { params });
+      return {
+        success: true,
+        data: response.data.services || [],
+        total: response.data.total || 0,
+        pages: response.data.pages || 1,
+        currentPage: response.data.current_page || 1
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: [],
+        message: error.response?.data?.message || 'Error searching services'
+      };
+    }
   }
 };
 

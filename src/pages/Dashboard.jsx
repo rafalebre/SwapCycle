@@ -8,6 +8,8 @@ import OnlineServices from './OnlineServices';
 import Trades from './Trades';
 import Favorites from './Favorites';
 import RegisterService from './RegisterService';
+import RegisterProduct from './RegisterProduct';
+import Profile from './Profile';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -23,6 +25,7 @@ const Dashboard = () => {
     if (path.includes('favorites')) return 'favorites';
     if (path.includes('register-service')) return 'register-service';
     if (path.includes('register-product')) return 'register-product';
+    if (path.includes('profile')) return 'profile';
     return 'dashboard';
   };
 
@@ -32,7 +35,6 @@ const Dashboard = () => {
     setActiveSection(getActiveSectionFromPath());
   }, [location.pathname]);
 
-  // FIX: Wait for loading before redirecting
   React.useEffect(() => {
     if (!loading && !isAuthenticated) {
       navigate('/login');
@@ -47,13 +49,13 @@ const Dashboard = () => {
         navigate('/dashboard/register-product');
         break;
       case 'register-service':
-        navigate('/register-service');
+        navigate('/dashboard/register-service');
         break;
       case 'search':
-        navigate('/dashboard/search');
+        navigate('/search');
         break;
       case 'online-services':
-        navigate('/dashboard/online-services');
+        navigate('/online-services');
         break;
       case 'my-listings':
         navigate('/dashboard/my-listings');
@@ -63,6 +65,9 @@ const Dashboard = () => {
         break;
       case 'favorites':
         navigate('/dashboard/favorites');
+        break;
+      case 'profile':
+        navigate('/dashboard/profile');
         break;
       default:
         navigate('/dashboard');
@@ -84,12 +89,9 @@ const Dashboard = () => {
       case 'register-service':
         return <RegisterService />;
       case 'register-product':
-        return (
-          <div className="coming-soon">
-            <h2>Register Product</h2>
-            <p>Product registration coming in Action 6!</p>
-          </div>
-        );
+        return <RegisterProduct />;
+      case 'profile':
+        return <Profile />;
       default:
         return (
           <div className="dashboard-home">
@@ -100,23 +102,57 @@ const Dashboard = () => {
                 <div className="action-buttons">
                   <button 
                     className="btn btn-primary"
+                    onClick={() => handleSectionChange('register-product')}
+                  >
+                    📦 Register New Product
+                  </button>
+                  <button 
+                    className="btn btn-primary"
                     onClick={() => handleSectionChange('register-service')}
                   >
-                    Register New Service
+                    🛠️ Register New Service
                   </button>
                   <button 
                     className="btn btn-secondary"
                     onClick={() => handleSectionChange('search')}
                   >
-                    Search Items
+                    🔍 Search Items
+                  </button>
+                  <button 
+                    className="btn btn-secondary"
+                    onClick={() => handleSectionChange('my-listings')}
+                  >
+                    📋 View My Listings
                   </button>
                 </div>
               </div>
               <div className="stat-card">
                 <h3>Your Activity</h3>
-                <p>Services: Loading...</p>
-                <p>Products: Coming soon...</p>
-                <p>Active Trades: Coming soon...</p>
+                <div className="activity-stats">
+                  <div className="stat-item">
+                    <span className="stat-number">0</span>
+                    <span className="stat-label">Products Listed</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-number">0</span>
+                    <span className="stat-label">Services Listed</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-number">0</span>
+                    <span className="stat-label">Active Trades</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-number">0</span>
+                    <span className="stat-label">Favorites</span>
+                  </div>
+                </div>
+              </div>
+              <div className="stat-card">
+                <h3>Recent Activity</h3>
+                <div className="recent-activity">
+                  <p className="no-activity">No recent activity</p>
+                  <small>Start by adding your first product or service!</small>
+                </div>
               </div>
             </div>
           </div>
@@ -124,16 +160,15 @@ const Dashboard = () => {
     }
   };
 
-  // FIX: Show loading while checking authentication
   if (loading) {
     return (
       <div className="loading-container">
-        <div className="loading-spinner">Loading...</div>
+        <div className="loading-spinner"></div>
+        <p>Loading dashboard...</p>
       </div>
     );
   }
 
-  // FIX: If not authenticated after loading, don't render dashboard
   if (!isAuthenticated) {
     return null;
   }
