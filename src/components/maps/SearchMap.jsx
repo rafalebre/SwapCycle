@@ -5,20 +5,34 @@ const SearchMap = ({
   onBoundsChange, 
   onMarkerClick, 
   hoveredItemId = null,
-  center = { lat: 40.7128, lng: -74.0060 }, 
-  zoom = 12 
+  userLocation
 }) => {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef([]);
   const infoWindowRef = useRef(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isLocationReady, setIsLocationReady] = useState(false);
+
+  // Wait for user location or timeout after 5 seconds
+  useEffect(() => {
+    if (userLocation) {
+      setIsLocationReady(true);
+    } else {
+      // Timeout after 5 seconds if no location
+      const timeout = setTimeout(() => {
+        setIsLocationReady(true);
+      }, 5000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [userLocation]);
 
   useEffect(() => {
-    if (window.google && window.google.maps) {
+    if (isLocationReady && (window.google && window.google.maps)) {
       initializeMap();
       setIsLoaded(true);
-    } else {
+    } else if (isLocationReady) {
       loadGoogleMapsScript();
     }
 
@@ -27,15 +41,18 @@ const SearchMap = ({
         infoWindowRef.current.close();
       }
     };
-  }, []);
+  }, [isLocationReady]);
 
   const initializeMap = useCallback(() => {
     if (!mapRef.current || !window.google?.maps) return;
 
+    // Use user location if available, otherwise fallback to NY
+    const center = userLocation || { lat: 40.7128, lng: -74.0060 };
+
     try {
       mapInstance.current = new window.google.maps.Map(mapRef.current, {
         center: center,
-        zoom: zoom,
+        zoom: 12,
         mapTypeControl: false,
         fullscreenControl: false,
         streetViewControl: false,
@@ -54,7 +71,7 @@ const SearchMap = ({
     } catch (error) {
       console.error('Error initializing map:', error);
     }
-  }, [center, zoom]);
+  }, [userLocation]);
 
   const loadGoogleMapsScript = () => {
     if (document.querySelector('script[src*="maps.googleapis.com"]')) {
@@ -75,7 +92,6 @@ const SearchMap = ({
       return;
     }
 
-    // Removed geometry library to fix IntersectionObserver error
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
     script.async = true;
     script.defer = true;
@@ -87,55 +103,44 @@ const SearchMap = ({
 
   const handleBoundsChange = useCallback(() => {
     if (!mapInstance.current || !onBoundsChange) return;
-    
+
     const bounds = mapInstance.current.getBounds();
     if (bounds) {
-      const boundsData = {
+      const boundsObj = {
         north: bounds.getNorthEast().lat(),
         south: bounds.getSouthWest().lat(),
         east: bounds.getNorthEast().lng(),
         west: bounds.getSouthWest().lng()
       };
-      onBoundsChange(boundsData);
+      onBoundsChange(boundsObj);
     }
   }, [onBoundsChange]);
 
-  const clearMarkers = () => {
+  useEffect(() => {
+    if (!isLoaded || !mapInstance.current || !window.google?.maps) return;
+
+    // Clear existing markers
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
-  };
 
-  useEffect(() => {
-    if (!isLoaded || !mapInstance.current) return;
+    if (!markers.length) return;
 
-    clearMarkers();
-
+    // Add new markers
     markers.forEach((markerData, index) => {
-      if (!markerData.latitude || !markerData.longitude) return;
+      const lat = parseFloat(markerData.latitude);
+      const lng = parseFloat(markerData.longitude);
+
+      if (isNaN(lat) || isNaN(lng)) return;
 
       const marker = new window.google.maps.Marker({
-        position: {
-          lat: parseFloat(markerData.latitude),
-          lng: parseFloat(markerData.longitude)
-        },
+        position: { lat, lng },
         map: mapInstance.current,
-        title: markerData.name,
+        title: markerData.title || markerData.name || 'Item',
         icon: {
           url: markerData.type === 'product' 
-            ? 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" fill="#007BFF" stroke="white" stroke-width="2"/>
-                <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">P</text>
-              </svg>
-            `)
-            : 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" fill="#28A745" stroke="white" stroke-width="2"/>
-                <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">S</text>
-              </svg>
-            `),
-          scaledSize: new window.google.maps.Size(24, 24),
-          anchor: new window.google.maps.Point(12, 12)
+            ? 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'
+            : 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
+          scaledSize: new window.google.maps.Size(32, 32)
         }
       });
 
@@ -145,9 +150,11 @@ const SearchMap = ({
         }
 
         const content = `
-          <div style="padding: 8px; max-width: 200px;">
-            <h4 style="margin: 0 0 8px 0; color: #333;">${markerData.name}</h4>
-            <p style="margin: 0 0 4px 0; color: #666; font-size: 14px;">
+          <div style="padding: 12px; max-width: 250px;">
+            <h4 style="margin: 0 0 8px 0; font-size: 16px; color: #333;">
+              ${markerData.title || markerData.name || 'Item'}
+            </h4>
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #666;">
               ${markerData.type === 'product' ? 'Product' : 'Service'}
               ${markerData.category ? ` • ${markerData.category}` : ''}
             </p>
@@ -204,6 +211,26 @@ const SearchMap = ({
       }, 2000);
     }
   }, [hoveredItemId, markers]);
+
+  // Show loading until location is ready
+  if (!isLocationReady) {
+    return (
+      <div style={{
+        height: '100%',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f8f9fa',
+        color: '#6c757d'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="loading-spinner" style={{ margin: '0 auto 16px auto' }}></div>
+          <p>Getting your location...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="search-map-container" style={{ height: '100%', width: '100%' }}>

@@ -1,111 +1,166 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { Heart, MapPin, Monitor, User, Star, Eye, Clock } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
-const ServiceCard = ({ service, showActions = false }) => {
+const ServiceCard = ({ service, onHover, onSelect, className = '' }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(service?.is_favorited || false);
   const { user } = useAuth();
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [imageError, setImageError] = useState(false);
 
-  const handleFavoriteToggle = async () => {
-    // TODO: Implement favorite functionality
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    if (onHover) onHover(service?.id);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (onHover) onHover(null);
+  };
+
+  const handleFavoriteToggle = (e) => {
+    e.stopPropagation();
     setIsFavorited(!isFavorited);
+    // TODO: Implement favorite API call
   };
 
-  const handleImageError = () => {
-    setImageError(true);
+  const handleViewClick = (e) => {
+    e.stopPropagation();
+    if (onSelect) onSelect(service);
   };
 
-  const getImageUrl = () => {
-    if (service?.images && service.images.length > 0 && !imageError) {
-      return `/api/static/uploads/services/${service.images[0]}`;
-    }
-    return '/placeholder-service.png';
+  const getServiceTypeBadge = (isOnline) => {
+    return isOnline 
+      ? { label: 'Online', className: 'badge-online', icon: Monitor }
+      : { label: 'Physical', className: 'badge-physical', icon: MapPin };
   };
 
-  const formatPrice = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value || 0);
+  const getAvailabilityBadge = (available) => {
+    return available 
+      ? { label: 'Available', className: 'badge-available' }
+      : { label: 'Busy', className: 'badge-busy' };
   };
 
-  const getServiceTypeBadge = () => {
-    if (service?.is_online) {
-      return { label: 'Online Service', className: 'service-online', icon: '💻' };
-    }
-    return { label: 'Physical Service', className: 'service-physical', icon: '📍' };
-  };
+  if (!service) {
+    return (
+      <div className="service-card service-card-skeleton">
+        <div className="card-image-skeleton"></div>
+        <div className="card-content">
+          <div className="skeleton-line"></div>
+          <div className="skeleton-line short"></div>
+        </div>
+      </div>
+    );
+  }
 
-  const getAvailabilityStatus = () => {
-    if (service?.availability_status === 'unavailable') {
-      return { label: 'Unavailable', className: 'status-unavailable' };
-    }
-    return { label: 'Available', className: 'status-available' };
-  };
-
-  const serviceTypeBadge = getServiceTypeBadge();
-  const availabilityStatus = getAvailabilityStatus();
+  const imageUrl = service.images?.[0]?.url || service.image_url || '/placeholder-service.jpg';
+  const serviceTypeBadge = getServiceTypeBadge(service.is_online);
+  const availabilityBadge = getAvailabilityBadge(service.available);
+  const TypeIcon = serviceTypeBadge.icon;
 
   return (
-    <div className="service-card">
-      <div className="card-image">
+    <div 
+      className={`service-card ${className} ${isHovered ? 'hovered' : ''} ${service.is_online ? 'online-service' : 'physical-service'}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleViewClick}
+    >
+      {/* Image Container */}
+      <div className="card-image-container">
         <img 
-          src={getImageUrl()} 
-          alt={service?.name || 'Service'} 
-          onError={handleImageError}
+          src={imageUrl} 
+          alt={service.title || service.name}
+          className="card-image"
+          loading="lazy"
         />
-        <div className="card-badges">
-          <span className={`service-type-badge ${serviceTypeBadge.className}`}>
-            {serviceTypeBadge.icon} {serviceTypeBadge.label}
+        
+        {/* Image Overlay Badges */}
+        <div className="image-badges">
+          <span className={`badge ${serviceTypeBadge.className}`}>
+            <TypeIcon className="badge-icon" />
+            {serviceTypeBadge.label}
           </span>
-          <span className={`availability-badge ${availabilityStatus.className}`}>
-            {availabilityStatus.label}
+          <span className={`badge ${availabilityBadge.className}`}>
+            {availabilityBadge.label}
           </span>
         </div>
+
+        {/* Favorite Heart */}
         {user && (
           <button 
             className={`favorite-btn ${isFavorited ? 'favorited' : ''}`}
             onClick={handleFavoriteToggle}
             title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
           >
-            <span className="heart-icon">
-              {isFavorited ? '❤️' : '🤍'}
-            </span>
+            <Heart className={`heart-icon ${isFavorited ? 'filled' : ''}`} />
           </button>
         )}
+
+        {/* Hover Overlay */}
+        <div className={`card-overlay ${isHovered ? 'visible' : ''}`}>
+          <button className="view-btn" onClick={handleViewClick}>
+            <Eye className="icon" />
+            View Details
+          </button>
+        </div>
       </div>
-      
+
+      {/* Card Content */}
       <div className="card-content">
-        <h3 className="service-name">
-          {service?.name || 'Service Name'}
-        </h3>
-        
-        <div className="service-details">
-          <p className="category">
-            {service?.category || 'Category'}
-            {service?.subcategory && (
-              <span className="subcategory"> • {service.subcategory}</span>
-            )}
-          </p>
-          
-          <p className="price">{formatPrice(service?.estimated_value)}</p>
-          
-          {!service?.is_online && service?.address && (
-            <p className="location">
-              �� {service.address}
-            </p>
-          )}
-          
-          {service?.is_online && (
-            <p className="online-indicator">
-              🌐 Available worldwide
-            </p>
+        <div className="card-header">
+          <h3 className="card-title" title={service.title || service.name}>
+            {service.title || service.name}
+          </h3>
+          {service.rating && (
+            <div className="rating">
+              <Star className="star-icon filled" />
+              <span className="rating-value">{service.rating}</span>
+            </div>
           )}
         </div>
 
-        {service?.description && (
-          <p className="description">
+        <div className="card-details">
+          <div className="price-section">
+            <span className="price">
+              {service.price} {service.currency || 'USD'}
+            </span>
+            <span className="price-unit">
+              /{service.price_unit || 'hour'}
+            </span>
+          </div>
+
+          {!service.is_online && service.location && (
+            <div className="location">
+              <MapPin className="location-icon" />
+              <span className="location-text">{service.location}</span>
+            </div>
+          )}
+
+          {service.is_online && (
+            <div className="online-info">
+              <Monitor className="online-icon" />
+              <span className="online-text">Remote Service</span>
+            </div>
+          )}
+
+          {service.duration && (
+            <div className="duration">
+              <Clock className="duration-icon" />
+              <span className="duration-text">{service.duration}</span>
+            </div>
+          )}
+
+          {service.category && (
+            <div className="category">
+              <span className="category-label">{service.category}</span>
+              {service.subcategory && (
+                <span className="subcategory-label">{service.subcategory}</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {service.description && (
+          <p className="card-description">
             {service.description.length > 100 
               ? `${service.description.substring(0, 100)}...` 
               : service.description
@@ -113,28 +168,33 @@ const ServiceCard = ({ service, showActions = false }) => {
           </p>
         )}
 
-        <div className="card-actions">
-          {user && service?.user_id !== user.id && service?.availability_status === 'available' && (
-            <button className="btn btn-primary">
-              Propose Trade
-            </button>
-          )}
-          
-          <Link 
-            to={`/service/${service?.id}`}
-            className="btn btn-secondary"
-          >
-            View Details
-          </Link>
-        </div>
-
-        {service?.created_at && (
-          <div className="card-footer">
-            <small className="creation-date">
-              Listed {new Date(service.created_at).toLocaleDateString()}
-            </small>
+        <div className="card-footer">
+          <div className="provider-info">
+            <div className="provider-avatar">
+              {service.provider?.name?.[0] || service.owner?.name?.[0] || 'U'}
+            </div>
+            <div className="provider-details">
+              <span className="provider-name">
+                {service.provider?.name || service.owner?.name || 'Anonymous Provider'}
+              </span>
+              {service.provider?.verified && (
+                <span className="verified-badge">Verified</span>
+              )}
+            </div>
           </div>
-        )}
+          
+          <div className="card-actions">
+            <button 
+              className="btn btn-outline-primary btn-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                // TODO: Navigate to service booking
+              }}
+            >
+              {service.is_online ? 'Book Online' : 'Request Service'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

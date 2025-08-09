@@ -1,0 +1,164 @@
+/* Dashboard Layout Styles */
+
+.dashboard {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.dashboard-content {
+  flex: 1;
+  margin-left: 250px; /* Space for sidebar */
+  padding: 0;
+  overflow-x: hidden;
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+/* Stats Cards */
+.stats-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e9ecef;
+}
+
+.stat-card h3 {
+  margin: 0 0 1rem 0;
+  color: #343a40;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.stat-number {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #007BFF;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.recent-activity {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.no-activity {
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+}
+
+.recent-activity small {
+  color: #adb5bd;
+  font-size: 0.8rem;
+}
+
+/* Loading State */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: #6c757d;
+}
+
+.loading-container .loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e9ecef;
+  border-top: 3px solid #007BFF;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+/* Quick Actions */
+.quick-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.quick-action-btn {
+  background: white;
+  border: 2px solid #007BFF;
+  color: #007BFF;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quick-action-btn:hover {
+  background: #007BFF;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-content {
+    margin-left: 0;
+    padding-top: 60px; /* Space for mobile header */
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .quick-actions {
+    flex-direction: column;
+  }
+  
+  .quick-action-btn {
+    justify-content: center;
+  }
+}
+
+/* Ensure proper spacing */
+.dashboard-content > * {
+  margin-bottom: 0;
+}
+
+/* Page content within dashboard */
+.dashboard-content .search-dashboard-page,
+.dashboard-content .profile-page,
+.dashboard-content .listings-page,
+.dashboard-content .trades-page,
+.dashboard-content .favorites-page {
+  height: 100vh;
+  overflow: hidden;
+}

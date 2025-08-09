@@ -1,119 +1,158 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { Heart, MapPin, ShoppingBag, Star, Eye } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
-const ProductCard = ({ product, showActions = false }) => {
+const ProductCard = ({ product, onHover, onSelect, className = '' }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(product?.is_favorited || false);
   const { user } = useAuth();
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [imageError, setImageError] = useState(false);
 
-  const handleFavoriteToggle = async () => {
-    // TODO: Implement favorite functionality
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    if (onHover) onHover(product?.id);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (onHover) onHover(null);
+  };
+
+  const handleFavoriteToggle = (e) => {
+    e.stopPropagation();
     setIsFavorited(!isFavorited);
+    // TODO: Implement favorite API call
   };
 
-  const handleImageError = () => {
-    setImageError(true);
-  };
-
-  const getImageUrl = () => {
-    if (product?.images && product.images.length > 0 && !imageError) {
-      return `/api/static/uploads/products/${product.images[0]}`;
-    }
-    return '/placeholder-product.png';
-  };
-
-  const formatPrice = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value || 0);
+  const handleViewClick = (e) => {
+    e.stopPropagation();
+    if (onSelect) onSelect(product);
   };
 
   const getConditionBadge = (condition) => {
     const badges = {
-      'new': { label: 'New', className: 'condition-new' },
-      'like-new': { label: 'Like New', className: 'condition-like-new' },
-      'good': { label: 'Good', className: 'condition-good' },
-      'fair': { label: 'Fair', className: 'condition-fair' },
-      'poor': { label: 'Poor', className: 'condition-poor' }
+      'new': { label: 'New', className: 'badge-new' },
+      'excellent': { label: 'Excellent', className: 'badge-excellent' },
+      'good': { label: 'Good', className: 'badge-good' },
+      'fair': { label: 'Fair', className: 'badge-fair' },
+      'poor': { label: 'Poor', className: 'badge-poor' }
     };
-    
-    return badges[condition] || { label: condition, className: 'condition-default' };
+    return badges[condition] || badges['good'];
   };
 
-  const getAvailabilityStatus = () => {
-    if (product?.availability_status === 'unavailable') {
-      return { label: 'Unavailable', className: 'status-unavailable' };
-    }
-    if (product?.quantity === 0) {
-      return { label: 'Out of Stock', className: 'status-out-of-stock' };
-    }
-    return { label: 'Available', className: 'status-available' };
+  const getAvailabilityBadge = (available) => {
+    return available 
+      ? { label: 'Available', className: 'badge-available' }
+      : { label: 'Unavailable', className: 'badge-unavailable' };
   };
 
-  const conditionBadge = getConditionBadge(product?.condition);
-  const availabilityStatus = getAvailabilityStatus();
+  if (!product) {
+    return (
+      <div className="product-card product-card-skeleton">
+        <div className="card-image-skeleton"></div>
+        <div className="card-content">
+          <div className="skeleton-line"></div>
+          <div className="skeleton-line short"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const imageUrl = product.images?.[0]?.url || product.image_url || '/placeholder-product.jpg';
+  const conditionBadge = getConditionBadge(product.condition);
+  const availabilityBadge = getAvailabilityBadge(product.available);
 
   return (
-    <div className="product-card">
-      <div className="card-image">
+    <div 
+      className={`product-card ${className} ${isHovered ? 'hovered' : ''}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleViewClick}
+    >
+      {/* Image Container */}
+      <div className="card-image-container">
         <img 
-          src={getImageUrl()} 
-          alt={product?.name || 'Product'} 
-          onError={handleImageError}
+          src={imageUrl} 
+          alt={product.title || product.name}
+          className="card-image"
+          loading="lazy"
         />
-        <div className="card-badges">
-          <span className={`condition-badge ${conditionBadge.className}`}>
+        
+        {/* Image Overlay Badges */}
+        <div className="image-badges">
+          <span className={`badge ${conditionBadge.className}`}>
             {conditionBadge.label}
           </span>
-          <span className={`availability-badge ${availabilityStatus.className}`}>
-            {availabilityStatus.label}
+          <span className={`badge ${availabilityBadge.className}`}>
+            {availabilityBadge.label}
           </span>
         </div>
+
+        {/* Favorite Heart */}
         {user && (
           <button 
             className={`favorite-btn ${isFavorited ? 'favorited' : ''}`}
             onClick={handleFavoriteToggle}
             title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
           >
-            <span className="heart-icon">
-              {isFavorited ? '❤️' : '🤍'}
-            </span>
+            <Heart className={`heart-icon ${isFavorited ? 'filled' : ''}`} />
           </button>
         )}
+
+        {/* Hover Overlay */}
+        <div className={`card-overlay ${isHovered ? 'visible' : ''}`}>
+          <button className="view-btn" onClick={handleViewClick}>
+            <Eye className="icon" />
+            View Details
+          </button>
+        </div>
       </div>
-      
+
+      {/* Card Content */}
       <div className="card-content">
-        <h3 className="product-name">
-          {product?.name || 'Product Name'}
-        </h3>
-        
-        <div className="product-details">
-          <p className="category">
-            {product?.category || 'Category'}
-            {product?.subcategory && (
-              <span className="subcategory"> • {product.subcategory}</span>
-            )}
-          </p>
-          
-          <p className="price">{formatPrice(product?.estimated_value)}</p>
-          
-          {product?.address && (
-            <p className="location">
-              📍 {product.address}
-            </p>
-          )}
-          
-          {product?.quantity && (
-            <p className="quantity">
-              Qty: {product.quantity}
-            </p>
+        <div className="card-header">
+          <h3 className="card-title" title={product.title || product.name}>
+            {product.title || product.name}
+          </h3>
+          {product.rating && (
+            <div className="rating">
+              <Star className="star-icon filled" />
+              <span className="rating-value">{product.rating}</span>
+            </div>
           )}
         </div>
 
-        {product?.description && (
-          <p className="description">
+        <div className="card-details">
+          <div className="price-section">
+            <span className="price">
+              {product.price} {product.currency || 'USD'}
+            </span>
+            {product.quantity && (
+              <span className="quantity">
+                <ShoppingBag className="quantity-icon" />
+                {product.quantity} available
+              </span>
+            )}
+          </div>
+
+          {product.location && (
+            <div className="location">
+              <MapPin className="location-icon" />
+              <span className="location-text">{product.location}</span>
+            </div>
+          )}
+
+          {product.category && (
+            <div className="category">
+              <span className="category-label">{product.category}</span>
+              {product.subcategory && (
+                <span className="subcategory-label">{product.subcategory}</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {product.description && (
+          <p className="card-description">
             {product.description.length > 100 
               ? `${product.description.substring(0, 100)}...` 
               : product.description
@@ -121,28 +160,28 @@ const ProductCard = ({ product, showActions = false }) => {
           </p>
         )}
 
-        <div className="card-actions">
-          {user && product?.user_id !== user.id && product?.availability_status === 'available' && (
-            <button className="btn btn-primary">
+        <div className="card-footer">
+          <div className="owner-info">
+            <div className="owner-avatar">
+              {product.owner?.name?.[0] || 'U'}
+            </div>
+            <span className="owner-name">
+              {product.owner?.name || 'Anonymous User'}
+            </span>
+          </div>
+          
+          <div className="card-actions">
+            <button 
+              className="btn btn-outline-primary btn-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                // TODO: Navigate to trade proposal
+              }}
+            >
               Propose Trade
             </button>
-          )}
-          
-          <Link 
-            to={`/product/${product?.id}`}
-            className="btn btn-secondary"
-          >
-            View Details
-          </Link>
-        </div>
-
-        {product?.created_at && (
-          <div className="card-footer">
-            <small className="creation-date">
-              Listed {new Date(product.created_at).toLocaleDateString()}
-            </small>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
