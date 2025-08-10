@@ -1,95 +1,504 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import ServiceForm from '../components/forms/ServiceForm';
-import serviceService from '../services/serviceService';
+import AddressAutocomplete from '../components/maps/AddressAutocomplete';
+import apiService from '../services/api';
 
 const RegisterService = () => {
   const navigate = useNavigate();
-  const { user, token } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const { user } = useAuth();
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    category_id: '',
+    subcategory_id: '',
+    estimated_value: '',
+    currency: 'USD',
+    is_online: false,
+    address: '',
+    latitude: null,
+    longitude: null,
+    use_profile_address: false
+  });
 
-  const handleServiceSubmit = async (serviceData) => {
-    if (!user || !token) {
-      setError('You must be logged in to register a service');
-      return;
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
+  const [images, setImages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (formData.use_profile_address && user && !formData.is_online) {
+      setFormData(prev => ({
+        ...prev,
+        address: user.address,
+        latitude: user.latitude,
+        longitude: user.longitude
+      }));
+    } else if (!formData.use_profile_address || formData.is_online) {
+      setFormData(prev => ({
+        ...prev,
+        address: '',
+        latitude: null,
+        longitude: null
+      }));
     }
+  }, [formData.use_profile_address, formData.is_online, user]);
 
-    setLoading(true);
-    setError('');
+  useEffect(() => {
+    if (formData.category_id) {
+      loadSubcategories(formData.category_id);
+    } else {
+      setSubcategories([]);
+      setFormData(prev => ({ ...prev, subcategory_id: '' }));
+    }
+  }, [formData.category_id]);
 
+  // Clear location data when switching to online service
+  useEffect(() => {
+    if (formData.is_online) {
+      setFormData(prev => ({
+        ...prev,
+        address: '',
+        latitude: null,
+        longitude: null,
+        use_profile_address: false
+      }));
+    }
+  }, [formData.is_online]);
+
+  const loadInitialData = async () => {
     try {
-      const response = await serviceService.createService(serviceData);
-      
-      if (response.status === 201) {
-        // Success - redirect to user's services
-        navigate('/dashboard/my-listings', { 
-          state: { 
-            message: 'Service registered successfully!',
-            tab: 'services'
-          }
-        });
-      }
+      const [categoriesRes, currenciesRes] = await Promise.all([
+        apiService.get('/services/categories'),
+        apiService.get('/utils/currencies')
+      ]);
+
+      setCategories(categoriesRes.data.categories || []);
+      setCurrencies(currenciesRes.data.currencies || []);
     } catch (error) {
-      console.error('Error creating service:', error);
-      
-      if (error.response?.data?.message) {
-        setError(error.response.data.message);
-      } else {
-        setError('Failed to register service. Please try again.');
-      }
-    } finally {
-      setLoading(false);
+      console.error('Error loading initial data:', error);
+      setErrors({ general: 'Failed to load form data. Please refresh the page.' });
     }
   };
 
-  if (!user) {
-    return (
-      <div className="auth-required">
-        <h2>Login Required</h2>
-        <p>You must be logged in to register a service.</p>
-        <button 
-          className="btn btn-primary"
-          onClick={() => navigate('/login')}
-        >
-          Go to Login
-        </button>
-      </div>
-    );
-  }
+  const loadSubcategories = async (categoryId) => {
+    try {
+      const response = await apiService.get(`/search/subcategories?category_id=${categoryId}&type=service`);
+      setSubcategories(response.data.subcategories || []);
+    } catch (error) {
+      console.error('Error loading subcategories:', error);
+      setSubcategories([]);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+
+    // Clear related errors
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }));
+    }
+  };
+
+  const handleAddressSelect = (addressData) => {
+    setFormData(prev => ({
+      ...prev,
+      address: addressData.address,
+      latitude: addressData.latitude,
+      longitude: addressData.longitude
+    }));
+
+    if (errors.address) {
+      setErrors(prev => ({ ...prev, address: null }));
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    
+    if (files.length + images.length > 3) {
+      setErrors(prev => ({ ...prev, images: 'Maximum 3 images allowed' }));
+      return;
+    }
+
+    const validFiles = files.filter(file => {
+      const isValid = file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024; // 5MB
+      if (!isValid) {
+        setErrors(prev => ({ ...prev, images: 'Invalid file. Please upload images under 5MB.' }));
+      }
+      return isValid;
+    });
+
+    const newImages = validFiles.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      id: Math.random().toString(36).substr(2, 9)
+    }));
+
+    setImages(prev => [...prev, ...newImages]);
+    
+    if (errors.images) {
+      setErrors(prev => ({ ...prev, images: null }));
+    }
+  };
+
+  const removeImage = (imageId) => {
+    setImages(prev => {
+      const filtered = prev.filter(img => img.id !== imageId);
+      // Cleanup blob URLs
+      const removed = prev.find(img => img.id === imageId);
+      if (removed?.preview?.startsWith('blob:')) {
+        URL.revokeObjectURL(removed.preview);
+      }
+      return filtered;
+    });
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.name.trim()) newErrors.name = 'Service name is required';
+    if (!formData.category_id) newErrors.category_id = 'Category is required';
+    if (!formData.estimated_value || formData.estimated_value <= 0) {
+      newErrors.estimated_value = 'Valid estimated value is required';
+    }
+    
+    // Address validation only for physical services
+    if (!formData.is_online) {
+      if (!formData.address.trim()) newErrors.address = 'Address is required for physical services';
+      if (!formData.latitude || !formData.longitude) {
+        newErrors.address = 'Please select a valid address from the suggestions';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      const submitData = new FormData();
+      
+      // Add form fields
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== null && formData[key] !== '') {
+          submitData.append(key, formData[key]);
+        }
+      });
+
+      // Add images
+      images.forEach((image, index) => {
+        submitData.append(`image_${index}`, image.file);
+      });
+
+      const response = await apiService.post('/services', submitData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      // Success - redirect to listings or show success message
+      navigate('/dashboard', { 
+        state: { 
+          message: 'Service registered successfully!', 
+          activeSection: 'my-listings' 
+        }
+      });
+
+    } catch (error) {
+      console.error('Error registering service:', error);
+      
+      if (error.response?.data?.errors) {
+        setErrors(error.response.data.errors);
+      } else {
+        setErrors({ 
+          general: error.response?.data?.message || 'Failed to register service. Please try again.' 
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      images.forEach(image => {
+        if (image.preview?.startsWith('blob:')) {
+          URL.revokeObjectURL(image.preview);
+        }
+      });
+    };
+  }, []);
 
   return (
-    <div className="register-service-page">
-      <div className="page-header">
-        <h1>Register New Service</h1>
-        <p>Share your skills and services with the SwapCycle community</p>
+    <div className="register-service">
+      <div className="form-header">
+        <h2>Register Service</h2>
+        <p>List a service you'd like to trade</p>
       </div>
 
-      {error && (
-        <div className="error-banner">
-          <p>{error}</p>
-          <button onClick={() => setError('')}>×</button>
+      {errors.general && (
+        <div className="error-message general-error">
+          {errors.general}
         </div>
       )}
 
-      <div className="form-container">
-        <ServiceForm 
-          onSubmit={handleServiceSubmit}
-          isEditing={false}
-        />
-      </div>
+      <form onSubmit={handleSubmit} className="service-form">
+        {/* Basic Information */}
+        <div className="form-section">
+          <h3>Basic Information</h3>
+          
+          <div className="form-group">
+            <label htmlFor="name">Service Name *</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              placeholder="Enter service name"
+              maxLength={100}
+              className={errors.name ? 'error' : ''}
+            />
+            {errors.name && <span className="error-text">{errors.name}</span>}
+          </div>
 
-      {loading && (
-        <div className="loading-overlay">
-          <div className="loading-spinner">
-            <div className="spinner"></div>
-            <p>Registering your service...</p>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="category_id">Category *</label>
+              <select
+                id="category_id"
+                name="category_id"
+                value={formData.category_id}
+                onChange={handleInputChange}
+                className={errors.category_id ? 'error' : ''}
+              >
+                <option value="">Select category</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+              {errors.category_id && <span className="error-text">{errors.category_id}</span>}
+            </div>
+
+            {subcategories.length > 0 && (
+              <div className="form-group">
+                <label htmlFor="subcategory_id">Subcategory</label>
+                <select
+                  id="subcategory_id"
+                  name="subcategory_id"
+                  value={formData.subcategory_id}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Select subcategory</option>
+                  {subcategories.map(subcategory => (
+                    <option key={subcategory.id} value={subcategory.id}>
+                      {subcategory.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              placeholder="Describe your service..."
+              maxLength={500}
+              rows={4}
+            />
+            <div className="char-count">{formData.description.length}/500</div>
           </div>
         </div>
-      )}
-    </div>
-  );
+
+        {/* Service Type */}
+        <div className="form-section">
+          <h3>Service Type</h3>
+          
+          <div className="form-group">
+            <div className="checkbox-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="is_online"
+                  checked={formData.is_online}
+                  onChange={handleInputChange}
+                />
+                <span className="checkmark"></span>
+                This is an online service (no physical location required)
+              </label>
+            </div>
+            {formData.is_online && (
+              <div className="service-type-info">
+                <p>✓ Online services are available globally and don't require a physical location.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Value */}
+        <div className="form-section">
+          <h3>Value</h3>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="estimated_value">Estimated Value *</label>
+              <input
+                type="number"
+                id="estimated_value"
+                name="estimated_value"
+                value={formData.estimated_value}
+                onChange={handleInputChange}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+                className={errors.estimated_value ? 'error' : ''}
+              />
+              {errors.estimated_value && <span className="error-text">{errors.estimated_value}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="currency">Currency</label>
+              <select
+                id="currency"
+                name="currency"
+                value={formData.currency}
+                onChange={handleInputChange}
+              >
+                {currencies.map(currency => (
+                  <option key={currency.code} value={currency.code}>
+                    {currency.code} - {currency.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Location - Only for physical services */}
+        {!formData.is_online && (
+          <div className="form-section">
+            <h3>Location</h3>
+            
+            <div className="form-group">
+              <div className="checkbox-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="use_profile_address"
+                    checked={formData.use_profile_address}
+                    onChange={handleInputChange}
+                  />
+                  <span className="checkmark"></span>
+                  Use my registered address
+                </label>
+              </div>
+            </div>
+
+            {!formData.use_profile_address && (
+              <div className="form-group">
+                <label htmlFor="address">Service Address *</label>
+                <AddressAutocomplete
+                  value={formData.address}
+                  onAddressSelect={handleAddressSelect}
+                  placeholder="Enter address where service is provided"
+                  className={errors.address ? 'error' : ''}
+                />
+                {errors.address && <span className="error-text">{errors.address}</span>}
+              </div>
+            )}
+
+            {formData.use_profile_address && user?.address && (
+              <div className="address-display">
+                <p><strong>Using address:</strong> {user.address}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Images */}
+        <div className="form-section">
+          <h3>Images</h3>
+          
+          <div className="form-group">
+            <label htmlFor="images">Upload Images (Max 3)</label>
+            <input
+              type="file"
+              id="images"
+              multiple
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={images.length >= 3}
+           />
+           {errors.images && <span className="error-text">{errors.images}</span>}
+         </div>
+
+         {images.length > 0 && (
+           <div className="image-preview-grid">
+             {images.map(image => (
+               <div key={image.id} className="image-preview">
+                 <img src={image.preview} alt="Service preview" />
+                 <button
+                   type="button"
+                   onClick={() => removeImage(image.id)}
+                   className="remove-image-btn"
+                 >
+                   ✕
+                 </button>
+               </div>
+             ))}
+           </div>
+         )}
+       </div>
+
+       {/* Submit */}
+       <div className="form-actions">
+         <button
+           type="button"
+           onClick={() => navigate('/dashboard')}
+           className="btn btn-secondary"
+           disabled={isLoading}
+         >
+           Cancel
+         </button>
+         <button
+           type="submit"
+           className="btn btn-primary"
+           disabled={isLoading}
+         >
+           {isLoading ? 'Registering...' : 'Register Service'}
+         </button>
+       </div>
+     </form>
+   </div>
+ );
 };
 
 export default RegisterService;
