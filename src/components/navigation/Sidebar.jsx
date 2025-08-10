@@ -1,14 +1,8 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
-const Sidebar = () => {
-  const { user, logout } = useAuth();
-  const location = useLocation();
-
-  const isActive = (path) => {
-    return location.pathname === path || location.pathname.startsWith(path);
-  };
+const Sidebar = ({ activeSection, onSectionChange, user }) => {
+  const { logout } = useAuth();
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
@@ -16,52 +10,52 @@ const Sidebar = () => {
     }
   };
 
-  const menuItems = [
+  // Dashboard internal sections (ALL as buttons, not links)
+  const dashboardSections = [
     {
-      path: '/dashboard',
+      id: 'dashboard',
       icon: '🏠',
-      label: 'Dashboard',
-      exact: true
+      label: 'Dashboard'
     },
     {
-      path: '/search',
+      id: 'register-product',
+      icon: '📦',
+      label: 'Register Product'
+    },
+    {
+      id: 'register-service',
+      icon: '🛠️',
+      label: 'Register Service'
+    },
+    {
+      id: 'search',
       icon: '🔍',
       label: 'Search Items'
     },
     {
-      path: '/online-services',
+      id: 'online-services',
       icon: '💻',
       label: 'Online Services'
     },
     {
-      path: '/dashboard/my-listings',
+      id: 'my-listings',
       icon: '📋',
       label: 'My Listings'
     },
     {
-      path: '/dashboard/trades',
+      id: 'trades',
       icon: '🔄',
       label: 'My Trades'
     },
     {
-      path: '/dashboard/favorites',
+      id: 'favorites',
       icon: '❤️',
       label: 'Favorites'
-    }
-  ];
-
-  const quickActions = [
-    {
-      path: '/dashboard/register-product',
-      icon: '📦',
-      label: 'Add Product',
-      className: 'quick-action-product'
     },
     {
-      path: '/dashboard/register-service',
-      icon: '🛠️',
-      label: 'Add Service',
-      className: 'quick-action-service'
+      id: 'profile',
+      icon: '👤',
+      label: 'Profile'
     }
   ];
 
@@ -80,57 +74,28 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Navigation Menu */}
+      {/* Navigation Menu - Dashboard Internal Sections */}
       <nav className="sidebar-nav">
+        <h4 className="section-title">Navigation</h4>
         <ul className="nav-list">
-          {menuItems.map((item) => (
-            <li key={item.path} className="nav-item">
-              <Link 
-                to={item.path}
-                className={`nav-link ${
-                  item.exact 
-                    ? location.pathname === item.path ? 'active' : ''
-                    : isActive(item.path) ? 'active' : ''
-                }`}
+          {dashboardSections.map((section) => (
+            <li key={section.id} className="nav-item">
+              <button 
+                onClick={() => onSectionChange(section.id)}
+                className={`nav-link ${activeSection === section.id ? 'active' : ''}`}
               >
-                <span className="nav-icon">{item.icon}</span>
-                <span className="nav-label">{item.label}</span>
-              </Link>
+                <span className="nav-icon">{section.icon}</span>
+                <span className="nav-label">{section.label}</span>
+              </button>
             </li>
           ))}
         </ul>
       </nav>
 
-      {/* Quick Actions */}
-      <div className="sidebar-section">
-        <h4 className="section-title">Quick Actions</h4>
-        <div className="quick-actions">
-          {quickActions.map((action) => (
-            <Link 
-              key={action.path}
-              to={action.path}
-              className={`quick-action-btn ${action.className}`}
-            >
-              <span className="action-icon">{action.icon}</span>
-              <span className="action-label">{action.label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* User Settings */}
+      {/* Logout Section */}
       <div className="sidebar-section">
         <h4 className="section-title">Account</h4>
         <ul className="nav-list">
-          <li className="nav-item">
-            <Link 
-              to="/dashboard/profile"
-              className={`nav-link ${isActive('/dashboard/profile') ? 'active' : ''}`}
-            >
-              <span className="nav-icon">👤</span>
-              <span className="nav-label">Profile</span>
-            </Link>
-          </li>
           <li className="nav-item">
             <button 
               onClick={handleLogout}

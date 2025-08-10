@@ -1,57 +1,85 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './hooks/useAuth';
+import Header from './components/common/Header';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
-import RegisterService from './pages/RegisterService';
-import RegisterProduct from './pages/RegisterProduct';
-import MyListings from './pages/MyListings';
-import Search from './pages/Search';
-import OnlineServices from './pages/OnlineServices';
-import Trades from './pages/Trades';
-import Favorites from './pages/Favorites';
-import Profile from './pages/Profile';
-import NotFound from './pages/NotFound';
-import './App.css';
 
-function App() {
+// Protected Route wrapper
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+  
+  return isAuthenticated ? children : <Navigate to="/login" />;
+};
+
+// Public Route wrapper (redirect to dashboard if already logged in)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+  
+  return isAuthenticated ? <Navigate to="/dashboard" /> : children;
+};
+
+const AppContent = () => {
+  return (
+    <Router>
+      <div className="App">
+        <Header />
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } />
+          <Route path="/register" element={
+            <PublicRoute>
+              <Register />
+            </PublicRoute>
+          } />
+
+          {/* Protected Routes - ONLY Dashboard route */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+
+          {/* Catch all redirect */}
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </div>
+    </Router>
+  );
+};
+
+const App = () => {
   return (
     <AuthProvider>
-      <Router>
-        <div className="App">
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/online-services" element={<OnlineServices />} />
-            
-            {/* Dashboard Routes */}
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/dashboard/*" element={<Dashboard />} />
-            
-            {/* Registration Routes */}
-            <Route path="/register-service" element={<RegisterService />} />
-            <Route path="/register-product" element={<RegisterProduct />} />
-            <Route path="/dashboard/register-service" element={<RegisterService />} />
-            <Route path="/dashboard/register-product" element={<RegisterProduct />} />
-            
-            {/* User Management Routes */}
-            <Route path="/dashboard/my-listings" element={<MyListings />} />
-            <Route path="/dashboard/trades" element={<Trades />} />
-            <Route path="/dashboard/favorites" element={<Favorites />} />
-            <Route path="/dashboard/profile" element={<Profile />} />
-            
-            {/* 404 Route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-      </Router>
+      <AppContent />
     </AuthProvider>
   );
-}
+};
 
 export default App;

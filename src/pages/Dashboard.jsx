@@ -16,24 +16,7 @@ const Dashboard = () => {
   const location = useLocation();
   const { user, isAuthenticated, loading } = useAuth();
   
-  const getActiveSectionFromPath = () => {
-    const path = location.pathname;
-    if (path.includes('my-listings')) return 'my-listings';
-    if (path.includes('search')) return 'search';
-    if (path.includes('online-services')) return 'online-services';
-    if (path.includes('trades')) return 'trades';
-    if (path.includes('favorites')) return 'favorites';
-    if (path.includes('register-service')) return 'register-service';
-    if (path.includes('register-product')) return 'register-product';
-    if (path.includes('profile')) return 'profile';
-    return 'dashboard';
-  };
-
-  const [activeSection, setActiveSection] = useState(getActiveSectionFromPath());
-
-  React.useEffect(() => {
-    setActiveSection(getActiveSectionFromPath());
-  }, [location.pathname]);
+  const [activeSection, setActiveSection] = useState('dashboard');
 
   React.useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -41,37 +24,10 @@ const Dashboard = () => {
     }
   }, [isAuthenticated, loading, navigate]);
 
+  // FIXED: handleSectionChange now ONLY uses setActiveSection, NO navigation
   const handleSectionChange = (sectionId) => {
     setActiveSection(sectionId);
-    
-    switch (sectionId) {
-      case 'register-product':
-        navigate('/dashboard/register-product');
-        break;
-      case 'register-service':
-        navigate('/dashboard/register-service');
-        break;
-      case 'search':
-        navigate('/search');
-        break;
-      case 'online-services':
-        navigate('/online-services');
-        break;
-      case 'my-listings':
-        navigate('/dashboard/my-listings');
-        break;
-      case 'trades':
-        navigate('/dashboard/trades');
-        break;
-      case 'favorites':
-        navigate('/dashboard/favorites');
-        break;
-      case 'profile':
-        navigate('/dashboard/profile');
-        break;
-      default:
-        navigate('/dashboard');
-    }
+    // NO navigate() calls - content changes within dashboard
   };
 
   const renderMainContent = () => {
@@ -98,37 +54,8 @@ const Dashboard = () => {
             <h2>Welcome to SwapCycle, {user?.name}!</h2>
             <div className="dashboard-stats">
               <div className="stat-card">
-                <h3>Quick Actions</h3>
-                <div className="action-buttons">
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => handleSectionChange('register-product')}
-                  >
-                    📦 Register New Product
-                  </button>
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => handleSectionChange('register-service')}
-                  >
-                    🛠️ Register New Service
-                  </button>
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={() => handleSectionChange('search')}
-                  >
-                    🔍 Search Items
-                  </button>
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={() => handleSectionChange('my-listings')}
-                  >
-                    📋 View My Listings
-                  </button>
-                </div>
-              </div>
-              <div className="stat-card">
                 <h3>Your Activity</h3>
-                <div className="activity-stats">
+                <div className="stats-grid">
                   <div className="stat-item">
                     <span className="stat-number">0</span>
                     <span className="stat-label">Products Listed</span>
